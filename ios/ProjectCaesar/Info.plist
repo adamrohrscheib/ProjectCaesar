@@ -75,5 +75,7 @@
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>GMSApiKey</key>
+    <string>AIzaSyCXnCC-NjH0j6LfaXcE9s4a0K1d5oMaUME</string>
   </dict>
 </plist>

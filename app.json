@@ -12,7 +12,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.adamrohr.ProjectCaesar",
-      "jsEngine": "jsc"
+      "jsEngine": "jsc",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Project Caesar uses your location to show where you are on the map for your friends."
+      },
+      "config": {
+        "googleMapsApiKey": "AIzaSyCXnCC-NjH0j6LfaXcE9s4a0K1d5oMaUME"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +34,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-location",
       [
         "expo-splash-screen",
         {
@@ -40,6 +47,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "bd9664ac-e3bc-4ef7-833a-e1f7b2094081"
+      }
     }
   }
 }

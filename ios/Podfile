@@ -13,6 +13,9 @@ install! 'cocoapods',
 
 prepare_react_native_project!
 
+# Enable Google Maps for react-native-maps on iOS
+$RNMapsUseGoogleMaps = true
+
 target 'ProjectCaesar' do
   use_expo_modules!
 
@@ -43,6 +46,9 @@ target 'ProjectCaesar' do
     :app_path => "#{Pod::Config.instance.installation_root}/..",
     :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
   )
+
+  # Ensure Google Maps pod for iOS is included with react-native-maps
+  pod 'react-native-google-maps', :path => '../node_modules/react-native-maps'
 
   post_install do |installer|
     react_native_post_install(
