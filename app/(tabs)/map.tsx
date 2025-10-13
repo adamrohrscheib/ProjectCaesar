@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import { Alert, StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import MapView, { Camera, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import TopIconButton from '@/components/TopIconButton';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import CheckInModal from '@/components/CheckInModal';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 
 export default function MapScreen() {
   const router = useRouter();
@@ -12,6 +14,9 @@ export default function MapScreen() {
   const { permissionStatus, coords, isRequesting, error } = useUserLocation();
   const mapRef = useRef<MapView | null>(null);
   const hasCenteredRef = useRef(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const sheetRef = useRef<BottomSheet | null>(null);
+  const snapPoints = useMemo(() => ['18%', '50%'], []);
 
   useEffect(() => {
     if (coords && mapRef.current && !hasCenteredRef.current) {
@@ -30,7 +35,7 @@ export default function MapScreen() {
   }, [coords]);
 
   const onStartCaesaring = () => {
-    Alert.alert('Check in', 'This will open a check-in flow.');
+    setIsModalOpen(true);
   };
 
   const topOffset = insets.top + 12;
@@ -88,15 +93,32 @@ export default function MapScreen() {
         />
       </View>
 
-      {/* Bottom sheet stub */}
-      <View style={[styles.bottomSheet, { bottom: 0 }]}> 
-        <Pressable onPress={onStartCaesaring} style={styles.checkInBar}>
-          <Text style={styles.checkInText}>Check in</Text>
-        </Pressable>
-        <View style={styles.bottomSheetBody}>
-          <Text style={styles.bottomSheetText}>Under construction</Text>
-        </View>
-      </View>
+      {/* Persistent bottom sheet for feed and the Check in bar */}
+      <BottomSheet
+        ref={sheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        enablePanDownToClose={false}
+        backgroundStyle={{ backgroundColor: '#fff' }}
+        handleIndicatorStyle={{ backgroundColor: '#CBD5E0' }}
+        style={{ zIndex: 50 }}
+      >
+        <BottomSheetView style={styles.sheetContent}> 
+          <Pressable onPress={onStartCaesaring} style={styles.checkInBar}>
+            <Text style={styles.checkInText}>Check in</Text>
+          </Pressable>
+          <View style={styles.bottomSheetBody}>
+            <Text style={styles.bottomSheetText}>Under construction</Text>
+          </View>
+        </BottomSheetView>
+      </BottomSheet>
+
+      <CheckInModal
+        visible={isModalOpen}
+        onRequestClose={() => setIsModalOpen(false)}
+        center={{ latitude: 40.7460, longitude: -74.0016 }}
+        userId={'1'}
+      />
     </View>
   );
 }
@@ -112,22 +134,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  bottomSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+  sheetContent: {
+    paddingHorizontal: 16,
     paddingBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.98)',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
   },
   checkInBar: {
     height: 48,
-    margin: 12,
+    marginTop: 12,
+    marginBottom: 8,
     borderRadius: 12,
     backgroundColor: '#5A67D8',
     alignItems: 'center',
@@ -147,6 +161,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#4a5568',
   },
+  
   banner: {
     position: 'absolute',
     left: 16,

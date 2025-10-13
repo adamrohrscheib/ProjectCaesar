@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import AWS from 'aws-sdk';
 import type { CheckIn, Following, User } from '@/app/interfaces';
+import { withApiLogging } from '@/lib/apiLogger';
 
 type AwsRuntimeConfig = {
   region?: string;
@@ -26,18 +27,9 @@ function getAwsConfig(): AwsRuntimeConfig {
       process.env.EXPO_PUBLIC_AWS_ACCESS_KEY_ID || awsExtra.accessKeyId,
     secretAccessKey:
       process.env.EXPO_PUBLIC_AWS_SECRET_ACCESS_KEY || awsExtra.secretAccessKey,
-    usersTable:
-      process.env.EXPO_PUBLIC_DDB_USERS_TABLE ||
-      awsExtra.usersTable ||
-      'ProjectCaesar_Users',
-    followingTable:
-      process.env.EXPO_PUBLIC_DDB_FOLLOWING_TABLE ||
-      awsExtra.followingTable ||
-      'ProjectCaesar_Following',
-    checkInsTable:
-      process.env.EXPO_PUBLIC_DDB_CHECKINS_TABLE ||
-      awsExtra.checkInsTable ||
-      'ProjectCaesar_Check-Ins',
+    usersTable: 'ProjectCaesar_Users',
+    followingTable: 'ProjectCaesar_Following',
+    checkInsTable: 'ProjectCaesar_Check-Ins',
   };
 }
 
@@ -70,9 +62,9 @@ export const Tables = {
 
 export async function fetchUserById(id: string): Promise<User | null> {
   const ddb = getDocumentClient();
-  const res = await ddb
-    .get({ TableName: Tables.users(), Key: { id } })
-    .promise();
+  const res = await withApiLogging('ddb.getUser', { id }, () =>
+    ddb.get({ TableName: Tables.users(), Key: { id } }).promise()
+  );
   const item = res.Item as any;
   if (!item) return null;
   return {
@@ -88,14 +80,16 @@ export async function fetchFollowingByUserId(
   userId: string
 ): Promise<Following[]> {
   const ddb = getDocumentClient();
-  const res = await ddb
-    .query({
-      TableName: Tables.following(),
-      KeyConditionExpression: '#uid = :uid',
-      ExpressionAttributeNames: { '#uid': 'userId' },
-      ExpressionAttributeValues: { ':uid': userId },
-    })
-    .promise();
+  const res = await withApiLogging('ddb.queryFollowingByUser', { userId }, () =>
+    ddb
+      .query({
+        TableName: Tables.following(),
+        KeyConditionExpression: '#uid = :uid',
+        ExpressionAttributeNames: { '#uid': 'userId' },
+        ExpressionAttributeValues: { ':uid': userId },
+      })
+      .promise()
+  );
   const items = (res.Items ?? []) as any[];
   return items.map((it) => ({
     userId: String(it.userId),
@@ -109,14 +103,16 @@ export async function fetchFollowingByFollowerId(
 ): Promise<Following[]> {
   const ddb = getDocumentClient();
   // If a GSI exists on followerId, switch to query; otherwise scan with a filter
-  const res = await ddb
-    .scan({
-      TableName: Tables.following(),
-      FilterExpression: '#fid = :fid',
-      ExpressionAttributeNames: { '#fid': 'followerId' },
-      ExpressionAttributeValues: { ':fid': followerId },
-    })
-    .promise();
+  const res = await withApiLogging('ddb.scanFollowingByFollower', { followerId }, () =>
+    ddb
+      .scan({
+        TableName: Tables.following(),
+        FilterExpression: '#fid = :fid',
+        ExpressionAttributeNames: { '#fid': 'followerId' },
+        ExpressionAttributeValues: { ':fid': followerId },
+      })
+      .promise()
+  );
   const items = (res.Items ?? []) as any[];
   return items.map((it) => ({
     userId: String(it.userId),
@@ -128,15 +124,17 @@ export async function fetchCheckInsByUserId(
   userId: string
 ): Promise<CheckIn[]> {
   const ddb = getDocumentClient();
-  const res = await ddb
-    .query({
-      TableName: Tables.checkIns(),
-      KeyConditionExpression: '#uid = :uid',
-      ExpressionAttributeNames: { '#uid': 'userId' },
-      ExpressionAttributeValues: { ':uid': userId },
-      ScanIndexForward: false,
-    })
-    .promise();
+  const res = await withApiLogging('ddb.queryCheckInsByUser', { userId }, () =>
+    ddb
+      .query({
+        TableName: Tables.checkIns(),
+        KeyConditionExpression: '#uid = :uid',
+        ExpressionAttributeNames: { '#uid': 'userId' },
+        ExpressionAttributeValues: { ':uid': userId },
+        ScanIndexForward: false,
+      })
+      .promise()
+  );
   const items = (res.Items ?? []) as any[];
   return items.map((it) => ({
     userId: String(it.userId),
@@ -144,6 +142,30 @@ export async function fetchCheckInsByUserId(
     time: Number(it.time),
     users: Array.isArray(it.users) ? it.users.map((u: any) => String(u)) : [],
   }));
+}
+
+export async function createCheckIn(input: {
+  userId: string;
+  location: string;
+  time: number; // epoch seconds
+  users?: string[];
+}): Promise<void> {
+  const ddb = getDocumentClient();
+  const item = {
+    userId: input.userId,
+    location: input.location,
+    time: input.time,
+    users: input.users ?? [],
+  };
+  // Prevent overwriting any existing check-in for the same user+time (composite key safety)
+  await withApiLogging('ddb.putCheckIn', { userId: input.userId, location: input.location }, () =>
+    ddb
+      .put({
+        TableName: Tables.checkIns(),
+        Item: item,
+      })
+      .promise()
+  );
 }
 
 
