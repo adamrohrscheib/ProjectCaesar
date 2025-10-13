@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View, Pressable } from 'react-native';
 import MapView, { Camera, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import TopIconButton from '@/components/TopIconButton';
-import FloatingOvalButton from '@/components/FloatingOvalButton';
 import { useUserLocation } from '@/hooks/useUserLocation';
 
 export default function MapScreen() {
@@ -31,7 +30,7 @@ export default function MapScreen() {
   }, [coords]);
 
   const onStartCaesaring = () => {
-    Alert.alert('Caesaring started!', 'We will add check-ins next.');
+    Alert.alert('Check in', 'This will open a check-in flow.');
   };
 
   const topOffset = insets.top + 12;
@@ -54,18 +53,7 @@ export default function MapScreen() {
         provider={PROVIDER_GOOGLE}
       />
 
-      <View style={[styles.topBar, { top: topOffset }]}>
-        <TopIconButton
-          iconName="person-circle-outline"
-          accessibilityLabel="Open Profile"
-          onPress={() => router.push('/profile')}
-        />
-        <TopIconButton
-          iconName="newspaper-outline"
-          accessibilityLabel="Open Feed"
-          onPress={() => router.push('/feed')}
-        />
-      </View>
+      {/* Top actions */}
 
       {permissionStatus === 'denied' ? (
         <View style={[styles.banner, { top: topOffset + 56 }]}> 
@@ -85,8 +73,29 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-      <View style={[styles.bottomCtaContainer, { bottom: bottomOffset }]}> 
-        <FloatingOvalButton label="Start Caesaring" onPress={onStartCaesaring} />
+      {/* Floating buttons for Account and Search */}
+      <View style={[styles.topBar, { top: topOffset }]}> 
+        <TopIconButton
+          iconName="person-circle-outline"
+          accessibilityLabel="Open Profile"
+          onPress={() => router.push('/profile')}
+        />
+        <TopIconButton
+          iconName="search-outline"
+          accessibilityLabel="Open Search"
+          // onPress={() => router.push({ pathname: '/search' })}
+          onPress={() => {}}
+        />
+      </View>
+
+      {/* Bottom sheet stub */}
+      <View style={[styles.bottomSheet, { bottom: 0 }]}> 
+        <Pressable onPress={onStartCaesaring} style={styles.checkInBar}>
+          <Text style={styles.checkInText}>Check in</Text>
+        </Pressable>
+        <View style={styles.bottomSheetBody}>
+          <Text style={styles.bottomSheetText}>Under construction</Text>
+        </View>
       </View>
     </View>
   );
@@ -103,11 +112,40 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  bottomCtaContainer: {
+  bottomSheet: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: 0,
+    right: 0,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  checkInBar: {
+    height: 48,
+    margin: 12,
+    borderRadius: 12,
+    backgroundColor: '#5A67D8',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkInText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  bottomSheetBody: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    paddingTop: 6,
+  },
+  bottomSheetText: {
+    textAlign: 'center',
+    color: '#4a5568',
   },
   banner: {
     position: 'absolute',

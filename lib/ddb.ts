@@ -103,6 +103,27 @@ export async function fetchFollowingByUserId(
   }));
 }
 
+// This scans for items where followerId == given id to compute following count quickly for profile
+export async function fetchFollowingByFollowerId(
+  followerId: string
+): Promise<Following[]> {
+  const ddb = getDocumentClient();
+  // If a GSI exists on followerId, switch to query; otherwise scan with a filter
+  const res = await ddb
+    .scan({
+      TableName: Tables.following(),
+      FilterExpression: '#fid = :fid',
+      ExpressionAttributeNames: { '#fid': 'followerId' },
+      ExpressionAttributeValues: { ':fid': followerId },
+    })
+    .promise();
+  const items = (res.Items ?? []) as any[];
+  return items.map((it) => ({
+    userId: String(it.userId),
+    followerId: String(it.followerId),
+  }));
+}
+
 export async function fetchCheckInsByUserId(
   userId: string
 ): Promise<CheckIn[]> {
