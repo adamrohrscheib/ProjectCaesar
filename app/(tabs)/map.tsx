@@ -88,8 +88,7 @@ export default function MapScreen() {
         <TopIconButton
           iconName="search-outline"
           accessibilityLabel="Open Search"
-          // onPress={() => router.push({ pathname: '/search' })}
-          onPress={() => {}}
+          onPress={() => router.push('/search' as any)}
         />
       </View>
 

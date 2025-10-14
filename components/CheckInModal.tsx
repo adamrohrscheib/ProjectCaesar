@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, StyleSheet, Text, Pressable, FlatList, ScrollView } from 'react-native';
 import type { Place } from '@/lib/places';
 import { useNearbyPlaces } from '@/hooks/useNearbyPlaces';
@@ -16,9 +16,9 @@ export default function CheckInModal({ visible, onRequestClose, center, userId }
   const { data: places, isLoading, error } = useNearbyPlaces({
     enabled: visible && step === 'choose',
     center,
-    radiusMeters: 250,
-    includedTypes: ['bar', 'restaurant'],
-    limit: 20,
+    radiusMeters: 75,
+    includedTypes: ['restaurant', 'bar'],
+    limit: 25,
   });
   const createCheckInMutation = useCreateCheckIn();
 
@@ -50,6 +50,27 @@ export default function CheckInModal({ visible, onRequestClose, center, userId }
     );
   };
 
+  const sortedPlaces = useMemo(() => {
+    if (!places || !center) return places ?? [];
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dist = (aLat: number, aLng: number, bLat: number, bLng: number) => {
+      const R = 6371000; // meters
+      const dLat = toRad(bLat - aLat);
+      const dLng = toRad(bLng - aLng);
+      const lat1 = toRad(aLat);
+      const lat2 = toRad(bLat);
+      const sinDLat = Math.sin(dLat / 2);
+      const sinDLng = Math.sin(dLng / 2);
+      const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+      return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+    };
+    return [...places].sort((p1, p2) => {
+      const d1 = p1.location ? dist(center.latitude, center.longitude, p1.location.latitude, p1.location.longitude) : Number.POSITIVE_INFINITY;
+      const d2 = p2.location ? dist(center.latitude, center.longitude, p2.location.latitude, p2.location.longitude) : Number.POSITIVE_INFINITY;
+      return d1 - d2;
+    });
+  }, [places, center]);
+
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={handleClose}>
       <View style={styles.modalBackdrop}>
@@ -69,10 +90,10 @@ export default function CheckInModal({ visible, onRequestClose, center, userId }
                 <Text style={styles.infoText}>Loading…</Text>
               ) : (
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
-                  {(places ?? []).length === 0 ? (
+                  {(sortedPlaces ?? []).length === 0 ? (
                     <Text style={styles.infoText}>No places found.</Text>
                   ) : null}
-                  {(places ?? []).map((item) => (
+                  {(sortedPlaces ?? []).map((item) => (
                     <View key={item.id} style={styles.card}>
                       <View style={{ flex: 1, marginRight: 12 }}>
                         <Text style={styles.cardTitle}>{item.displayName}</Text>
@@ -115,7 +136,7 @@ const styles = StyleSheet.create({
   },
   sheetContainer: {
     width: '92%',
-    height: '50%',
+    height: '65%',
     alignSelf: 'center',
     backgroundColor: '#fff',
     borderTopLeftRadius: 16,

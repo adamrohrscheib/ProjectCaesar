@@ -73,7 +73,42 @@ export async function fetchUserById(id: string): Promise<User | null> {
     email: String(item.email),
     name: String(item.name),
     phone: String(item.phone),
+    username: item.username ? String(item.username) : undefined,
   } satisfies User;
+}
+
+// NOTE: For name/username search, a GSI is recommended (e.g., nameLower or usernameLower).
+// As a stopgap in dev, we do a filtered scan with begins_with/contains on lower-cased fields.
+export async function searchUsersByText(query: string): Promise<User[]> {
+  const ddb = getDocumentClient();
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const res = await withApiLogging('ddb.searchUsersByText', { query: q }, () =>
+    ddb
+      .scan({
+        TableName: Tables.users(),
+        FilterExpression:
+          'contains(#name, :q) OR contains(#username, :q) OR contains(#email, :q)',
+        ExpressionAttributeNames: {
+          '#name': 'name',
+          '#username': 'username',
+          '#email': 'email',
+        },
+        ExpressionAttributeValues: {
+          ':q': q,
+        },
+      })
+      .promise()
+  );
+  const items = (res.Items ?? []) as any[];
+  return items.map((item) => ({
+    id: String(item.id),
+    createTime: Number(item.createTime),
+    email: String(item.email),
+    name: String(item.name),
+    phone: String(item.phone ?? ''),
+    username: item.username ? String(item.username) : undefined,
+  }));
 }
 
 export async function fetchFollowingByUserId(
@@ -163,6 +198,21 @@ export async function createCheckIn(input: {
       .put({
         TableName: Tables.checkIns(),
         Item: item,
+      })
+      .promise()
+  );
+}
+
+export async function createFollow(input: { userId: string; followerId: string }): Promise<void> {
+  const ddb = getDocumentClient();
+  const item = { userId: input.userId, followerId: input.followerId };
+  await withApiLogging('ddb.putFollow', { userId: input.userId, followerId: input.followerId }, () =>
+    ddb
+      .put({
+        TableName: Tables.following(),
+        Item: item,
+        ConditionExpression: 'attribute_not_exists(#uid) AND attribute_not_exists(#fid)',
+        ExpressionAttributeNames: { '#uid': 'userId', '#fid': 'followerId' },
       })
       .promise()
   );
