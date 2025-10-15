@@ -56,6 +56,7 @@ export default function MapScreen() {
         showsUserLocation
         initialRegion={initialRegion}
         provider={PROVIDER_GOOGLE}
+        customMapStylei="314a85c7603856bb7deb6770"
       />
 
       {/* Top actions */}

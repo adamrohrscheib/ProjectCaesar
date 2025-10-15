@@ -1,21 +1,13 @@
 import { Stack } from 'expo-router';
-import { StyleSheet, View, Text, TextInput, FlatList, Pressable } from 'react-native';
-import { useEffect, useState } from 'react';
-import { useSearchUsers } from '@/hooks/useSearchUsers';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { useState } from 'react';
 import { useCreateFollow } from '@/hooks/useCreateFollow';
 import { useGetFollowingByFollower } from '@/hooks/useGetFollowing';
 import { CURRENT_USER_ID } from '@/constants/currentUser';
+import SearchAutocomplete from '@/components/SearchAutocomplete';
 
 export default function SearchScreen() {
   const [q, setQ] = useState('');
-  const [debouncedQ, setDebouncedQ] = useState('');
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQ(q), 500);
-    return () => clearTimeout(timer);
-  }, [q]);
-
-  const { data, isLoading } = useSearchUsers(debouncedQ);
   const { data: myFollowing } = useGetFollowingByFollower(CURRENT_USER_ID);
   const followMutation = useCreateFollow();
 
@@ -28,47 +20,27 @@ export default function SearchScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Search' }} />
-      <TextInput
-        style={styles.input}
+      <SearchAutocomplete
+        mode="users"
         placeholder="Search by name or username..."
-        value={q}
-        onChangeText={setQ}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {debouncedQ.length < 2 ? (
-        <Text style={styles.helper}>Type at least 2 characters to search.</Text>
-      ) : isLoading ? (
-        <Text style={styles.helper}>Searching…</Text>
-      ) : (
-        <FlatList
-          data={(data as any as import('@/app/interfaces').User[]) ?? []}
-          keyExtractor={(u) => u.id}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
-                {item.username ? <Text style={styles.username}>@{item.username}</Text> : null}
-              </View>
-              {followingSet.has(item.id) ? (
-                <View style={[styles.followBtn, styles.followingBtn]}>
-                  <Text style={styles.followingText}>Following</Text>
-                </View>
-              ) : (
-                <Pressable
-                  onPress={() => onFollow(item.id)}
-                  disabled={followMutation.status === 'pending'}
-                  style={[styles.followBtn, followMutation.status === 'pending' ? styles.followBtnDisabled : null]}
-                >
-                  <Text style={styles.followText}>{followMutation.status === 'pending' ? '...' : 'Follow'}</Text>
-                </Pressable>
-              )}
+        query={q}
+        onQueryChange={setQ}
+        renderTrailing={(u) => (
+          followingSet.has(u.id) ? (
+            <View style={[styles.followBtn, styles.followingBtn]}>
+              <Text style={styles.followingText}>Following</Text>
             </View>
-          )}
-          ListEmptyComponent={<Text style={styles.helper}>No users found.</Text>}
-          contentContainerStyle={{ paddingBottom: 24 }}
-        />
-      )}
+          ) : (
+            <Pressable
+              onPress={() => onFollow(u.id)}
+              disabled={followMutation.status === 'pending'}
+              style={[styles.followBtn, followMutation.status === 'pending' ? styles.followBtnDisabled : null]}
+            >
+              <Text style={styles.followText}>{followMutation.status === 'pending' ? '...' : 'Follow'}</Text>
+            </Pressable>
+          )
+        )}
+      />
     </View>
   );
 }

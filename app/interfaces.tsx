@@ -21,6 +21,9 @@ export interface CheckIn {
   location: string;
   time: number; // epoch seconds
   users: UserId[]; // other users present
+  // Optional metadata provided after initial check-in
+  lineMinutes?: number; // 0 means no line, e.g., 60 represents 1hr+
+  notes?: string;
 }
 
 

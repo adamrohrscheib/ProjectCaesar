@@ -3,6 +3,10 @@ import AWS from 'aws-sdk';
 import type { CheckIn, Following, User } from '@/app/interfaces';
 import { withApiLogging } from '@/lib/apiLogger';
 
+AWS.config.update({
+  dynamoDbCrc32: false,
+});
+
 type AwsRuntimeConfig = {
   region?: string;
   accessKeyId?: string;
@@ -198,6 +202,51 @@ export async function createCheckIn(input: {
       .put({
         TableName: Tables.checkIns(),
         Item: item,
+      })
+      .promise()
+  );
+}
+
+export async function updateCheckIn(input: {
+  userId: string;
+  time: number; // epoch seconds (composite key)
+  users?: string[];
+  lineMinutes?: number;
+  notes?: string;
+}): Promise<void> {
+  const ddb = getDocumentClient();
+  const updates: string[] = [];
+  const ExpressionAttributeNames: Record<string, string> = {};
+  const ExpressionAttributeValues: Record<string, any> = {};
+
+  if (typeof input.users !== 'undefined') {
+    updates.push('#users = :users');
+    ExpressionAttributeNames['#users'] = 'users';
+    ExpressionAttributeValues[':users'] = input.users;
+  }
+  if (typeof input.lineMinutes !== 'undefined') {
+    updates.push('#lineMinutes = :lineMinutes');
+    ExpressionAttributeNames['#lineMinutes'] = 'lineMinutes';
+    ExpressionAttributeValues[':lineMinutes'] = input.lineMinutes;
+  }
+  if (typeof input.notes !== 'undefined') {
+    updates.push('#notes = :notes');
+    ExpressionAttributeNames['#notes'] = 'notes';
+    ExpressionAttributeValues[':notes'] = input.notes;
+  }
+
+  if (updates.length === 0) return; // nothing to update
+
+  const UpdateExpression = `SET ${updates.join(', ')}`;
+
+  await withApiLogging('ddb.updateCheckIn', { userId: input.userId, time: input.time }, () =>
+    ddb
+      .update({
+        TableName: Tables.checkIns(),
+        Key: { userId: input.userId, time: input.time },
+        UpdateExpression,
+        ExpressionAttributeNames,
+        ExpressionAttributeValues,
       })
       .promise()
   );
